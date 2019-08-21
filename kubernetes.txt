@@ -1,0 +1,308 @@
+sudo touch /etc/apt/sources.list.d/kubernetes.list
+sudo chmod 666 /etc/apt/sources.list.d/kubernetes.list
+gpg --keyserver keyserver.ubuntu.com --recv-keys BA07F4FBgpg --export --armor BA07F4FB | sudo apt-key add -
+gpg --export --armor BA07F4FB | sudo apt-key add -
+sudo apt update
+关闭防火墙
+sudo ufw disable
+关闭swap
+sudo swapoff -a
+关闭selinux
+sudo apt install -y selinux-utils
+禁止selinux
+setenforce 0
+重启操作系统
+sudo shutdown -f now
+查看selinux是否关闭
+sudo getenforce    Disabled表示已关闭
+创建 /etc/sysctl.d/k8s.conf 文件
+添加
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+vm.swappiness = 0
+执行命令修改
+sudo modprobe br_netfilter
+sudo sysctl -p /etc/sysctl.d/k8s.conf
+进入root
+apt update && apt-get install -y kubelet=1.13.1-00 kubernetes-cni=0.6.0-00 kubeadm=1.13.1-00 kubectl=1.13.1-00
+设置开机启动
+sudo systemctl enable kubelet && systemctl start kubelet
+sudo shutdown -r now
+
+验证k8s
+kubectl get nodes   -->   The connection to the server localhost:8080 was refused - did you specify the right host or port?
+查看版本号
+kubectl version
+--》 Client Version: version.Info{Major:"1", Minor:"13", GitVersion:"v1.13.1", GitCommit:"eec55b9ba98609a46fee712359c7b5b365bdd920", GitTreeState:"clean", BuildDate:"2018-12-13T10:39:04Z", GoVersion:"go1.11.2", Compiler:"gc", Platform:"linux/amd64"}
+The connection to the server localhost:8080 was refused - did you specify the right host or port?
+
+修改 /etc/hostname
+vim /etc/hostname  ->node1  
+node2同理
+shutdown -r now
+
+配置ip
+master
+	vim /etc/netpian/50-cloud-init.yaml
+	network:
+		ethernets:
+			ens33:
+				addresses: [192.168.236.177/24]
+				dhcp4: false
+				gateway4: 192.168.236.2
+				nameservers:
+					addresses: [192.168.236.2]
+				optional: true
+		version: 2
+重启ip配置
+netplan apply
+
+node1:
+	network:
+		ethernets:
+			ens33:
+				addresses: [192.168.236.178/24]
+				dhcp4: false
+				gateway4: 192.168.236.2
+				nameservers:
+					addresses: [192.168.236.2]
+				optional: true
+		version: 2
+
+重启ip配置
+netplan apply
+
+
+
+node2:
+network:
+		ethernets:
+			ens33:
+				addresses: [192.168.236.179/24]
+				dhcp4: false
+				gateway4: 192.168.236.2
+				nameservers:
+					addresses: [192.168.236.2]
+				optional: true
+		version: 2
+
+
+修改hosts文件
+使用root
+打开hosts文件 vim /etc/hosts
+192.168.236.177 master
+192.168.236.178 node1
+192.168.236.179 node2
+
+重启
+shutdown -r now
+
+配置master结点
+创建工作目录
+mkdir /home/pyvip/working
+cd /home/pyvip/working
+
+生成配置文件
+kubeadm config print init-defaults ClusterConfiguration > kubeadm.conf
+修改
+imageRepository
+kubernetesVersion
+
+vi kubeadm.conf
+	imageRepository: k8s.gcr.io -> imageRepository: registry.cn-beijing.aliyuncs.com/imcto
+	kubernetesVersion: v1.13.0 -> kubernetesVersion: v1.13.1
+	localAPIEndpoint:
+		advertiseAddress: 192.168.236.177
+		bindPort: 6443
+	networking:
+		dnsDomain: cluster.local
+		podSubnet: 10.244.0.0/16
+		serviceSubnet: 10.96.0.0/12
+	scheduler: {}
+拉取k8s必备模块
+查看需要下载的模块
+kubeadm config images list --config kubeadm.conf
+下载全部
+kubeadm config images pull --config ./kubeadm.conf
+
+初始化
+sudo kubeadm init --config ./kubeadm.conf
+
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HME/.kube/confing
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+kubeadm join 192.168.236.177:6443 --token ........................................
+
+创建系统服务启动
+sudo systemctl enable kubelet
+启动k8s服务
+sudo systemctl start kubelet
+
+验证
+kubectl get nodes
+
+
+部署集群内部通信flannel网络
+cd $HOME/working
+wget https://raw.githubusercontent.com/coreos/flannel/a70459be0084506e4ec919aa114638878db11b/Documentation/kube-flannel.yml
+编辑这个文件，确保flannel网络是对的
+vim kube-flannel.yml
+
+net-conf.json:
+	{
+	"Network":  "10.244.0.0/16",
+	"Backend": {
+	"Type": "vxlan"
+}
+}
+应用flannel
+kubectl apply -f kube-flannel.yml
+
+
+
+配置Node环境
+创建系统服务启动
+sudo systemctl enable kubelet
+启动k8s服务
+sudo systemctl start kubelet
+
+将master的/etc/kubernetes/admin.conf传到node
+登录master终端
+sudo scp /etc/kubernetes/admin.conf pyvip@192.168.236.178:/home/pyvip/
+sudo scp /etc/kubernetes/admin.conf pyvip@192.168.236.179:/home/pyvip/
+登录node1 创建kube配置文件环境
+mkdir -p $HOME/.kube
+sudo cp -i $HOME/admin.conf $HME/.kube/confing
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+登录node2 创建kube配置文件环境
+mkdir -p $HOME/.kube
+sudo cp -i $HOME/admin.conf $HME/.kube/confing
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+将node1和2分别连接master加入master集群
+sudo kubeadm join 192.168.236.177:6443 --token ...................
+
+应用两个node主机分别应用flannel网络
+将master中的kube-flannel.yml 分别传递给两个node
+sudo scp $HOME/working/kube-flannel.yml pyvip@192.168.236.178:/home/pyvip/
+sudo scp $HOME/working/kube-flannel.yml pyvip@192.168.236.178:/home/pyvip/
+
+分别启动
+kubectl apply -f kube-flannel.yml
+
+
+创建mysql-rc.yaml
+apiVersion: v1
+kind: ReplicationController 	#副本控制器RC
+metadata:
+	name: mysql  	# RC名称
+spec:
+	replicas: 1 	# pod副本期待数量
+	selector:
+	app: mysql 	# 符合目标的pod拥有测标签
+	template:		# 根据此模板创建pod的副本（实例）
+	metadata:
+	labels:
+	app: mysql	# pod副本拥有的标签，对应RC的Selector
+	spec:
+	containers:	# pod内容器的定义部分
+	- name: mysql	# 容器名称
+	image: hub.c.163.com/library/mysql 	# 容器对应的Docker image
+	ports:
+	- containerPort: 3306	# 容器应用监听的端口
+	env:		# 注入容器环境变量
+	- name: MYSQL_ROOT_PASSWORD
+	   value: "123456"
+	
+加载ReplicationController副本控制器
+创建好mysql-rc.yml后在master节点使用kubectl命令
+kubectl create -f mysql-rc.yaml
+查看
+kubectl get pods
+
+kubectl describe pod mysql
+
+
+创建mytomcat-web.yaml
+apiVersion: v1
+kind: ReplicationController 	#副本控制器RC
+metadata:
+	name: myweb  	# RC名称
+spec:
+	replicas: 5 	# pod副本期待数量
+	selector:
+	app: myweb  	# 符合目标的pod拥有测标签
+	template:		# 根据此模板创建pod的副本（实例）
+	metadata:
+	labels:
+	app: myweb  	# pod副本拥有的标签，对应RC的Selector
+	spec:
+	containers:	# pod内容器的定义部分
+	- name: myweb  	# 容器名称
+	image: docker.io/kubeguide/tomcat-app:v1 	# 容器对应的Docker image
+	ports:
+	- containerPort: 8080	# 容器应用监听的端口
+	env:		# 注入容器环境变量
+	- name: MYSQL_SERVICE_HOST
+	   value: "mysql"
+	- name: MYSQL_SERVICE_PORT
+	   value: "3306"
+
+加载RC副本描述文件
+kubectl create -f mytomcat-web.yaml
+kubectl get rc
+kubectl get pods
+
+创建服务副本
+在master服务器使用root用户并切换到working目录 cd /root/working/
+创建描述文件 myweb-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+	name: myweb
+spec:
+	type: NodePort
+	ports:
+		-port: 8080
+		nodePort: 30001
+	selector:
+		app: myweb
+
+部署服务
+kubectl create -f myweb-sev.yaml
+
+验证
+kubectl get service
+
+
+
+
+首先找到创建好的mysql 的pod 的name
+kubectl get pods
+
+查看当前pod的详细信息
+kubectl describe pod mysql-kjdz8
+得到mysql在subnet内网的ip地址10.244.1.8和登录密码
+ip:		10.244.1.8
+...
+Environment:
+	MYSQL_ROOT_PASSWORD: 123456
+登录mysql实例，创建数据库
+kubectl exec -it mysql-kjdz8 --bash
+/# mysql -u root --password=123456 --default- character-set=utf8
+创建数据库注意大小写
+CREATE DATABASE IF NOT EXISTS newsWeb default charset utf8 collate utf8_general_ci;
+use newsWeb
+
+下载beego-docker镜像
+docker pull registry.cn
+
+
+
+
+
+
+
+
