@@ -1,0 +1,219 @@
+一 Docker 命令：
+
+使用docker可直接进行docker 命令，如 docker build .等等
+
+
+二 Docker Remote Api
+
+也可以通过remote api的方式来进行交互，以下介绍如何配置：
+
+
+开发环境：centos 7,docker 17.11
+
+docker
+开启api :
+
+
+修改文件：/usr/lib/systemd/system/docker.service中的ExecStart
+
+
+ExecStart=/usr/bin/dockerd $DOCKER_OPTS -H unix:///var/run/docker.sock -H tcp://127.0.0.1:1234
+
+
+$systemctl daemon-reload
+ 
+
+$systemctl restart docker.service
+
+配置成功后即可进行本地访问：
+
+curl http://localhost:1234/info
+
+
+tip?: 我的localhost ip为127.0.0.1所以在ExecStart中填写的的是tcp://127.0.0.1:1234
+
+
+端口号1234是随机指定的
+
+
+具体的命令介绍查看文章：http://dockone.io/article/109
+
+
+三 Docker Engine SDKs and API
+
+
+以下介绍：Develop using the Docker Engine SDKs and API（通过docker的SDK和API来进行docker的开发）
+
+
+https://docs.docker.com/develop/sdk/(docker官方链接)
+
+
+基于目前使用的代码为golang,此处仅介绍golang的用法
+
+
+获取Go SDK
+
+go get github.com/docker/docker/client
+
+
+关于version的问题
+
+API的version取决于你所安装的docker版本
+
+若运行时报版本错误，设置变量?DOCKER_API_VERSION
+
+为错误提示中指定的版本即可
+
+具体的版本对应在官网中都有提示
+
+
+开发代码
+
+（1）连接代码：
+
+（i） 使用默认环境变量配置生成新的连接
+
+
+cli, err := client.NewEnvClient()
+
+   if err != nil {
+
+       panic(err)
+
+   }
+
+（ii）使用client.NewClient()
+
+
+具体的文档地址https://godoc.org/github.com/moby/moby/client（docker项目已改名为moby）
+
+
+func NewClient(host string, version string, client *http.Client, httpHeaders map[string]string) (*Client, error)
+
+此接口可通过用户指定的host,version等参数来生成新的连接
+
+（2）push镜像
+
+若使用的是自己搭建的本地仓库并且没有设置验证，
+
+types.AuthConfig的
+
+Username和Password的值可置为空
+
+
+authConfig := types.AuthConfig{Username: "username", Password: "password",}
+
+	encodedJSON, err := json.Marshal(authConfig)
+
+	if err != nil {
+
+		panic(err)
+
+	}
+
+	authStr := base64.URLEncoding.EncodeToString(encodedJSON)
+
+	out, err := cli.ImagePush(ctx, "alpine", types.ImagePushOptions{RegistryAuth: authStr})
+
+	if err != nil {
+
+		panic(err)
+
+	}
+
+ 
+（3）build镜像
+
+https://docs.docker.com/engine/api/v1.32/#operation/ImageBuild
+
+
+构建镜像需要将所需的代码文件打包成一个tar格式的压缩包
+
+
+在client中设置customHttpHeades，
+
+
+若在新建client时使用的是NewEnvClient方法，则需要添加代码
+
+
+cli.SetCustomHTTPHeaders(map[string]string{"Content-type":"application/x-tar"})
+
+
+若在新建client时使用的是NewClient方法，则在新建时的参数httpHeaders 值为map[string]string{"Content-type":"application/x-tar"}
+
+
+即类似为
+
+
+cli,_ := client.NewClient(host,version,nil,map[string]string{"Content-type":"application/x-tar"})
+
+
+接着构建镜像：
+
+
+所用到的方法为：
+
+
+func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, options types.ImageBuildOptions) (types.ImageBuildResponse, error)
+
+其中buildContext即为代码的压缩包，
+
+
+BuildContext, err := os.Open("/path/to/tar/archieve.tar")
+
+
+若遇到问题可参考：https://stackoverflow.com/questions/39893116/docker-client-build-error
+后一个回答中的代码是可用的
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

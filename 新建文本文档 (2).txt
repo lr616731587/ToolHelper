@@ -1,0 +1,89 @@
+1、简介
+
+Client-go是kubernetes官方发布的调用K8S API的golang语言包，可以用来开发K8S的管理服务、监控服务，配合前端展示，就可以开发出一款定制化的、可视化的管理或监控工具。目前最新版本为7.0，对应K8S的版本为1.10，访问链接：https://github.com/kubernetes/client-go
+其中client-go与K8S版本对应关系为：
+
+
+
+由于目前我们测试环境的K8S集群版本为1.5.2，所以此处我们使用client-go2.0版本。
+
+2、安装
+
+可以直接使用go语言第三方包管理工具下载client-go，或者使用go语言自带的管理工具下载，需要特别注意的是，client-go包与k8s版本号有一定的对应关系，一定要选择下载与目标k8s版本对应的版本号。下载方式为：
+
+$ go get github.com/kubernetes/client-go
+或者，也可以自己手动去github下载下面的几个包：
+
+github.com/kubernetes/client-go
+github.com/google/gofuzz
+github.com/golang/glog
+然后将它们放在$GOPATH下面的src文件夹中对应的文件夹下。例如：github.com/google/gofuzz，存放的目录为$GOPATH/src/github.com/google/gofuzz。
+不过，需要特别注意的是，不知什么原因，网络上面的教程下载的client-go包存放的位置都是$GOPATH/src/k8s.io/client-go。其实go代码中引用的client-go包方式与client-go包在本地的存放位置有关，而该存放位置并没有严格的控制，可以随意存放（如果是手动下载的话），所以此处我们也将github.com/kubernetes/client-go存放位置修改为$GOPATH/src/k8s.io/client-go，如下图：
+
+
+
+所以此时在go代码中引用client-go时的方式就变成了下面这样：
+
+
+
+3、开发
+
+Client-go开发k8s有两种方式，一种是in cluster模式，另一种是out of cluster模式，至于二者的区别，大致来看可以认为我们开发的go服务是否放在K8S集群内运行，在集群内运行则为in cluster模式，否则为out of cluster模式。此处我们此次采用的是out of cluster模式。
+我们的项目名称为k8smanage，该项目下主要的文件为两个：main.go和config.yaml。其中，main.go中为我们访问k8s的主要代码，而config.yaml中保存了目标k8s集群的连接信息。其中，main.go中代码截图如下所示：
+
+
+package main
+
+import (
+"k8s.io/client-go/tools/clientcmd"
+"flag"
+"fmt"
+"k8s.io/client-go/kubernetes"
+"k8s.io/client-go/pkg/api/v1"
+)
+
+var (
+    kubeconfig = flag.String("kubconfig", "./config.yaml", "absolute path to the kubeconfig file")
+)
+
+func main() {
+
+fmt.Printf("Beginning... \n")
+config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+if err != nil {
+fmt.Printf("Get k8s config failed %#v\n", err)
+}
+
+
+}
+
+
+
+
+
+
+
+
+而config.yaml中的内容如下所示：
+
+
+apiVersion: v1
+clusters:
+- cluster:
+    api-version: v1
+    server: http://127.0.0.1:8080
+  name:
+contexts: []
+current-context: ""
+kind: Config
+preferences: {}
+users: []
+
+
+
+那么对于一个新的k8s集群来说，我们应该如何编写config.yaml文件中的内容呢？其实比较简单，在k8s集群的master上通过指令“kubectl config view”获取的信息就是我们config.yaml中的内容：
+
+
+
+不过，为了直接通过config.yaml文件就能获取目标k8s集群的连接信息，我们没有直接使用空的clusters字段值，而是补充了里面的server字段信息，server字段值为k8s master节点上apiServer的访问地址。
+到此，config.yaml文件中的配置信息就配置完成了。通过main.go中开头的代码部分就可以正常访问k8s集群了。

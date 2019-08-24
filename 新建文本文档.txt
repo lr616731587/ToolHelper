@@ -1,0 +1,85 @@
+Buildpacks入门
+按照下面的教程学习如何使用pack和Cloud Native Buildpacks。
+
+应用程序从源到图像的简短旅程
+pack本教程是一个易于理解的Cloud Native Buildpack简介，可帮助您快速启动并运行。
+
+运用 pack
+pack最重要的命令的详细解释和示例。
+
+创建Cloud Native Buildpack
+这个教程将指导您创建一个简单的ruby buildpack。
+
+社区和支持
+Cloud Native Buildpacks是CNCF中的一个活跃沙盒项目。我们欢迎社区的贡献。在这里，您将找到与核心团队互动并为项目做出贡献的有用信息。
+
+联系核心团队
+联系Cloud Native Buildpack团队的最佳位置是我们的Slack频道或邮件列表。
+
+项目路线图
+这是一个社区驱动的项目，我们的路线图在我们的Github页面上公开发布。我们鼓励您提供功能请求。
+
+其他资源
+有用的视频
+Pivotal Cloud Foundry Buildpack如何工作 - https://www.youtube.com/watch?v=1JKLiPBmlIc
+
+提供有关buildpacks优势的高级概述，以及与单独使用docker镜像相比可实现的速度，安全性和稳定性优势
+Buildpacks可以更好 - https://www.youtube.com/watch?v=J6zn3WRqJko
+
+Stephen和Tyler出席了2018年Cloud Foundry Summit，讨论了结构不良的Dockerfiles，解决方案buildpacks提供的问题，以及buildpacks模型的最新创新（包括OCI图像！）
+Cloud Native Buildpack简介 - https://www.youtube.com/watch?v=t3C2nW0WTRo&feature=youtu.be
+
+Terence和Jo讨论了创建docker文件所涉及的摩擦，构建包如何提供帮助，并提供一些演示
+Cloud Native Build Packs，Spring One 2018 - https://www.youtube.com/watch?v=wU5n7Sv8JL8
+
+Stephen和Terence宣布CNCF将构建包带到任何平台
+意见构建包的未来 - https://www.youtube.com/watch?v=spW9ZlJpobM
+
+Emily和Stephen讨论了OCI图像的优点，并使用基本节点应用程序进行演示
+最后由Andrew Meyer修改
+
+
+
+安装
+Installing pack
+Prerequisites
+Install Docker Community Edition
+
+Supported operating systems
+You can install the most recent version of pack (version 0.2.1) as an executable binary on the following operating systems:
+
+macOS
+Linux
+Windows
+macOS
+To install pack on macOS, the easiest way is to use Homebrew:
+
+brew tap buildpack/tap
+brew install pack
+Optional: Enable auto-completion
+
+
+
+Linux
+
+wget https://github.com/buildpack/pack/releases/download/v0.2.1/pack-v0.2.1-linux.tgz
+tar xvf pack-v0.2.1-linux.tgz
+rm pack-v0.2.1-linux.tgz
+./pack --help
+
+From there, you can copy the executable to a directory like /usr/local/bin or add the current directory to your PATH.
+
+Optional: Enable auto-completion
+
+
+
+Windows
+
+You can install the Windows executable for pack by downloading the Windows ZIP file.
+
+Auto-completion
+To configure your bash shell to load completions for each session, add the following to your .bashrc or .bash_profile:
+
+. $(pack completion)
+Last modified by Andrew Meyer
+
